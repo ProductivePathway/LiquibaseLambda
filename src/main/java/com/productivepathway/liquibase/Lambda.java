@@ -31,7 +31,7 @@ public class Lambda implements RequestHandler<Request, Response> {
             logger.info("Updating from " + s3Key);
 
             AmazonS3 s3Client = new AmazonS3Client(new DefaultAWSCredentialsProviderChain());
-            File downloadDir = new File("/tmp/download");
+            File downloadDir = new File("/tmp/download");//Lambda can only create under /tmp
             downloadDir.mkdirs();
             downloadS3(s3Client, s3Key, downloadDir);
             
@@ -40,7 +40,7 @@ public class Lambda implements RequestHandler<Request, Response> {
             Connection connection = DriverManager.getConnection(connectionProperties.getProperty("url"), connectionProperties);
 
             Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
-            Liquibase liquibase = new liquibase.Liquibase(downloadDir.getPath() + "changelog.xml", new FileSystemResourceAccessor(), database);
+            Liquibase liquibase = new liquibase.Liquibase(downloadDir.getPath() + "/changelog.xml", new FileSystemResourceAccessor(), database);
             liquibase.update(new Contexts(), new LabelExpression());
 
             response.setSuccess(true);
@@ -63,7 +63,7 @@ public class Lambda implements RequestHandler<Request, Response> {
 
             for (S3ObjectSummary objectSummary : result.getObjectSummaries()) {
                 if(objectSummary.getKey().endsWith("/")) {
-                    logger.info("Skipping folder: " + objectSummary.getKey());
+                    logger.debug("Skipping folder: " + objectSummary.getKey());
                     continue;
                 }
                 logger.info("Downloading " + objectSummary.getKey());
@@ -71,7 +71,7 @@ public class Lambda implements RequestHandler<Request, Response> {
                 InputStream inputStream = s3Object.getObjectContent();
                 String localRelativePath = objectSummary.getKey().substring(keyPrefix.length());
                 File local = new File(localDirectory, localRelativePath);
-                logger.info("Downloading to " + local);
+                logger.debug("Downloading to " + local);
                 BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(local));
 
                 int read;
@@ -81,9 +81,11 @@ public class Lambda implements RequestHandler<Request, Response> {
                 }
                 s3Object.close();
                 fos.close();
+                logger.debug("Downloaded " + local);
             }
             req.setContinuationToken(result.getNextContinuationToken());
         } while(result.isTruncated());
+        logger.info("Finished download");
     }
 }
 

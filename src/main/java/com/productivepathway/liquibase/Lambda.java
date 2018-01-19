@@ -27,7 +27,7 @@ public class Lambda implements RequestHandler<Request, Response> {
         long startTime = System.currentTimeMillis();
         try {
             request.validate();
-            String s3Key = request.getPath();//S3 key prefix to directory. Expects connection.properties and changelog.xml
+            String s3Key = request.getPath();//S3 key prefix to directory. Expects jdbc.properties and changelog.xml
             logger.info("Updating from " + s3Key);
 
             AmazonS3 s3Client = new AmazonS3Client(new DefaultAWSCredentialsProviderChain());
@@ -36,7 +36,7 @@ public class Lambda implements RequestHandler<Request, Response> {
             downloadS3(s3Client, s3Key, downloadDir);
             
             Properties connectionProperties = new Properties();
-            connectionProperties.load(new FileInputStream(new File(downloadDir, "connection.properties")));
+            connectionProperties.load(new FileInputStream(new File(downloadDir, "jdbc.properties")));
             Connection connection = DriverManager.getConnection(connectionProperties.getProperty("url"), connectionProperties);
 
             Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));

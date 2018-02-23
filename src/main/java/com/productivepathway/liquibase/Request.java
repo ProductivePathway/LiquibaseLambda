@@ -7,6 +7,7 @@ import org.apache.log4j.*;
 public class Request {
     protected Logger logger = Logger.getLogger(getClass().getName());
     private String path;
+    private String documentationPath;//Optional: Path to which documentation should be written
 
     public Request(String path) {
         this.path = decode(path);
@@ -23,12 +24,22 @@ public class Request {
         this.path = decode(path);
     }
 
+    public String getDocumentationPath() {
+        return documentationPath;
+    }
+
+    public void setDocumentationPath(String documentationPath) {
+        this.documentationPath = decode(documentationPath);
+    }
+
     public void validate() {
         require("path", path);
     }
 
     public String toString() {
-        return getClass().getSimpleName() + ":[" + path + "]";
+        return getClass().getSimpleName() + ":[" + path
+            + (documentationPath != null ? (" documentationPath=" + documentationPath) : "")
+            + "]";
     }
 
     protected void require(String name, String value) {

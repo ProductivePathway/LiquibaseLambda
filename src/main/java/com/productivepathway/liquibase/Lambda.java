@@ -43,6 +43,12 @@ public class Lambda implements RequestHandler<Request, Response> {
             Liquibase liquibase = new liquibase.Liquibase(downloadDir.getPath() + "/changelog.xml", new FileSystemResourceAccessor(), database);
             liquibase.update(new Contexts(), new LabelExpression());
 
+            if(request.getDocumentationPath() != null) {
+                File documentationDir = new File(LOCAL_DOCUMENTATION_PATH);
+                documentationDir.mkdirs();
+                liquibase.generateDocumentation(documentationDir.getPath());
+                uploadS3(s3Client, documentationDir, request.getDocumentationPath());
+            }
             response.setSuccess(true);
         } catch (Throwable e) {
             logger.error("Unable to process " + request, e);
@@ -53,6 +59,7 @@ public class Lambda implements RequestHandler<Request, Response> {
 
     private static Logger logger = Logger.getLogger(Lambda.class);
     private final static String BUCKET_NAME = "ppi-liquibase";
+    private final static String LOCAL_DOCUMENTATION_PATH = "/tmp/documentation";//Lambda can only create under /tmp
 
     private void downloadS3(AmazonS3 s3client, String keyPrefix, File localDirectory) throws IOException, AmazonClientException {
         logger.info("Downloading " + BUCKET_NAME + ":" + keyPrefix + " to " + localDirectory);
@@ -86,6 +93,20 @@ public class Lambda implements RequestHandler<Request, Response> {
             req.setContinuationToken(result.getNextContinuationToken());
         } while(result.isTruncated());
         logger.info("Finished download");
+    }
+
+    private void uploadS3(AmazonS3 s3client, File localDirectory, String keyPrefix) throws IOException, AmazonClientException {
+        logger.debug("uploadS3(, " + localDirectory.getPath() + ", " + keyPrefix + ")");
+        for(File file : localDirectory.listFiles()) {
+            logger.debug("file=" +  file);
+            String fileKey = keyPrefix + "/" + file.getName();
+            if(file.isDirectory()) {
+                uploadS3(s3client, file, fileKey);
+            } else {
+                logger.debug("Uploading " + file.getPath() + " to " + fileKey);
+                s3client.putObject(new PutObjectRequest(BUCKET_NAME, fileKey, file));
+            }
+        }
     }
 }
 
